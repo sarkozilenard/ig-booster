@@ -167,6 +167,7 @@ async function handle(req, params, method) {
       const userHandle = (it.userHandle || '').trim();
       if (!userHandle) return badRequest('Hiányzó felhasználónév egy termékhez');
       const serviceType = pkg.serviceType || 'followers';
+      const platform = (it.platform || 'instagram').toLowerCase() === 'tiktok' ? 'tiktok' : 'instagram';
       const mediaLink = (it.mediaLink || '').trim();
       if (serviceType === 'like' && !mediaLink) return badRequest('Hiányzó poszt/videó link egy like termékhez');
       const lineTotal = pkg.price * qty;
@@ -184,6 +185,7 @@ async function handle(req, params, method) {
         userHandle,
         mediaLink: serviceType === 'like' ? mediaLink : '',
         serviceType,
+        platform,
       });
     }
 

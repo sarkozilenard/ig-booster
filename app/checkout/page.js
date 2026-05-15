@@ -73,10 +73,10 @@ export default function CheckoutPage() {
             userHandle: i.userHandle,
             mediaLink: i.mediaLink,
             serviceType: i.serviceType,
+            platform: i.platform || 'instagram',
           })),
           couponCode: coupon?.code,
         }),
-      });
       const out = await res.json();
       if (!res.ok) { toast.error(out.error || "Hiba"); return; }
       toast.success("Megrendelés leadva!");
@@ -159,7 +159,7 @@ export default function CheckoutPage() {
                   {items.map(i => (
                     <div key={i.id} className="flex justify-between text-sm">
                       <span>
-                        {i.quantity}× {i.followers.toLocaleString("hu-HU")} követő
+                        {i.quantity}× {i.followers.toLocaleString("hu-HU")} {i.serviceType === 'like' ? 'like' : `${(i.platform || 'instagram') === 'instagram' ? 'Instagram' : 'TikTok'} követő`}
                         {i.bonus ? <span className="text-emerald-300"> +{i.bonus}</span> : null}
                       </span>
                       <span className="font-semibold">{formatHUF(i.subtotal)}</span>

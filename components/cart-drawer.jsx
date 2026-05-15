@@ -54,7 +54,9 @@ export function CartDrawer() {
                 <button onClick={() => removeItem(it.id)} className="absolute right-3 top-3 text-muted-foreground hover:text-red-400 transition">
                   <Trash2 className="h-4 w-4" />
                 </button>
-                <div className="text-sm text-muted-foreground">{it.serviceType === 'like' ? 'Like csomag' : 'Követő csomag'}</div>
+                <div className="text-sm text-muted-foreground">
+                  {it.serviceType === 'like' ? 'Like csomag' : `${(it.platform || 'instagram') === 'instagram' ? 'Instagram' : 'TikTok'} követő csomag`}
+                </div>
                 <div className="text-lg font-bold">
                   {it.followers.toLocaleString("hu-HU")} {it.serviceType === 'like' ? 'like' : 'követő'}
                   {it.bonus ? <span className="text-emerald-300 text-sm ml-1">+{it.bonus} 💎</span> : null}

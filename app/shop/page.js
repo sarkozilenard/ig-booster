@@ -37,6 +37,7 @@ function pkgIcon(p) {
 
 export default function ShopPage() {
   const [authChecked, setAuthChecked] = useState(false);
+  const [platform, setPlatform] = useState('instagram');
   const router = useRouter();
   const { addItem } = useCart();
 
@@ -67,6 +68,7 @@ export default function ShopPage() {
       userHandle: '',
       mediaLink: '',
       serviceType: p.serviceType || 'followers',
+      platform,
     });
     toast.success(`Kosaradba téve: ${packageLabel(p)}`);
   };
@@ -97,6 +99,18 @@ export default function ShopPage() {
         <div className="text-center mb-8">
           <h2 className="text-3xl sm:text-4xl font-extrabold">Válaszd a <span className="neon-text">csomagod</span></h2>
           <p className="text-muted-foreground mt-2">Egy kattintás és máris a kosaradban van</p>
+          <div className="mt-5 inline-flex rounded-full border border-purple-500/30 bg-[#080515]/80 p-1">
+            {['instagram', 'tiktok'].map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setPlatform(item)}
+                className={`px-4 py-2 text-sm font-semibold transition ${platform === item ? 'bg-fuchsia-500 text-white shadow-lg' : 'text-muted-foreground hover:text-white'}`}
+              >
+                {item === 'instagram' ? 'Instagram' : 'TikTok'}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -131,7 +145,9 @@ export default function ShopPage() {
                     {p.followers.toLocaleString("hu-HU")}
                     {p.bonus && <span className="text-emerald-300 text-base ml-1">+{p.bonus}</span>}
                   </div>
-                  <div className="text-xs text-muted-foreground">{p.serviceType === 'like' ? 'Like' : 'Social követő'}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {p.serviceType === 'like' ? 'Like' : `${platform === 'instagram' ? 'Instagram' : 'TikTok'} követő`}
+                  </div>
 
                   <div className="mt-4 flex items-baseline gap-2">
                     <div className="text-2xl font-bold neon-text">{formatHUF(p.price)}</div>
