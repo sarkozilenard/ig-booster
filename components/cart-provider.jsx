@@ -29,10 +29,21 @@ export function CartProvider({ children }) {
   };
   const removeItem = (id) => setItems((prev) => prev.filter((i) => i.id !== id));
   const clear = () => { setItems([]); setCoupon(null); };
-  const updateQty = (id, qty) => setItems((prev) => prev.map((i) => i.id === id ? { ...i, quantity: qty, subtotal: i.pricePerUnit * qty } : i));
+  const updateQty = (id, qty) => setItems((prev) => prev.map((i) => {
+    if (i.id !== id) return i;
+    const quantity = Math.max(1, Number(qty) || 1);
+    return { ...i, quantity, subtotal: i.price * quantity };
+  }));
+  const updateItem = (id, updates) => setItems((prev) => prev.map((i) => {
+    if (i.id !== id) return i;
+    const next = { ...i, ...updates };
+    const quantity = typeof next.quantity === 'number' ? next.quantity : i.quantity;
+    next.subtotal = next.price * quantity;
+    return next;
+  }));
 
   return (
-    <CartContext.Provider value={{ items, addItem, removeItem, clear, updateQty, coupon, setCoupon, open, setOpen }}>
+    <CartContext.Provider value={{ items, addItem, removeItem, clear, updateQty, updateItem, coupon, setCoupon, open, setOpen }}>
       {children}
     </CartContext.Provider>
   );

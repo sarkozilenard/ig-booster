@@ -22,7 +22,7 @@ export function ShopNav() {
           <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-fuchsia-500 to-purple-600 grid place-items-center glow">
             <Sparkles className="h-5 w-5" />
           </div>
-          <span className="font-extrabold tracking-tight text-lg neon-text">IG BOOSTER</span>
+          <span className="font-extrabold tracking-tight text-lg neon-text">SOCIAL BOOSTER</span>
         </Link>
         <div className="flex items-center gap-2">
           <Button variant="ghost" onClick={() => setOpen(true)} className="relative hover:bg-purple-500/10">

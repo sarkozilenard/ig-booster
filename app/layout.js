@@ -3,8 +3,8 @@ import { Toaster } from '@/components/ui/sonner'
 import { CartProvider } from '@/components/cart-provider'
 
 export const metadata = {
-  title: 'IG Booster — Premium Instagram Growth',
-  description: 'Premium Instagram booster service. Real engagement, fast delivery.',
+  title: 'Social Booster — Premium Social Growth',
+  description: 'Premium social booster service. Real engagement, fast delivery.',
 }
 
 export default function RootLayout({ children }) {

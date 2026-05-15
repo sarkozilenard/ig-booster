@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AnimatedBackground } from "@/components/animated-background";
 import { ShopNav } from "@/components/shop-nav";
 import { CartDrawer } from "@/components/cart-drawer";
@@ -20,10 +21,10 @@ import { toast } from "sonner";
 
 const schema = z.object({
   fullName: z.string().min(2, "Még 1 karakter"),
-  instagramUsername: z.string().min(2, "Még 1 karakter").regex(/^[a-zA-Z0-9._]+$/, "Érvénytelen username"),
   email: z.string().email("Érvénytelen email"),
   phone: z.string().min(6, "Érvénytelen szám"),
   notes: z.string().optional(),
+  isPublic: z.boolean().refine(val => val === true, "El kell fogadnod, hogy a profilod nyilvános"),
 });
 
 export default function CheckoutPage() {
@@ -34,7 +35,7 @@ export default function CheckoutPage() {
 
   const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
-    defaultValues: { fullName: "", instagramUsername: "", email: "", phone: "", notes: "" }
+    defaultValues: { fullName: "", email: "", phone: "", notes: "", isPublic: false }
   });
 
   useEffect(() => {
@@ -49,6 +50,16 @@ export default function CheckoutPage() {
 
   const onSubmit = async (data) => {
     if (items.length === 0) { toast.error("A kosarad üres"); return; }
+    for (const item of items) {
+      if (!item.userHandle || !item.userHandle.trim()) {
+        toast.error("Adj meg minden termékhez felhasználónevet");
+        return;
+      }
+      if (item.serviceType === 'like' && (!item.mediaLink || !item.mediaLink.trim())) {
+        toast.error("Adj meg minden like termékhez poszt/videó linket");
+        return;
+      }
+    }
     setSubmitting(true);
     try {
       const res = await fetch("/api/orders/create", {
@@ -56,8 +67,14 @@ export default function CheckoutPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
-          items: items.map(i => ({ packageId: i.packageId, quantity: i.quantity })),
-          couponCode: coupon?.code
+          items: items.map(i => ({
+            packageId: i.packageId,
+            quantity: i.quantity,
+            userHandle: i.userHandle,
+            mediaLink: i.mediaLink,
+            serviceType: i.serviceType,
+          })),
+          couponCode: coupon?.code,
         }),
       });
       const out = await res.json();
@@ -99,11 +116,6 @@ export default function CheckoutPage() {
                 {errors.fullName && <p className="text-xs text-red-400 mt-1">{errors.fullName.message}</p>}
               </div>
               <div>
-                <Label>Instagram felhasználónév</Label>
-                <Input {...register("instagramUsername")} className="mt-1 bg-black/40 border-purple-500/30 h-11" placeholder="jankovács" />
-                {errors.instagramUsername && <p className="text-xs text-red-400 mt-1">{errors.instagramUsername.message}</p>}
-              </div>
-              <div>
                 <Label>Email</Label>
                 <Input {...register("email")} type="email" className="mt-1 bg-black/40 border-purple-500/30 h-11" placeholder="email@example.com" />
                 {errors.email && <p className="text-xs text-red-400 mt-1">{errors.email.message}</p>}
@@ -112,6 +124,11 @@ export default function CheckoutPage() {
                 <Label>Telefon</Label>
                 <Input {...register("phone")} className="mt-1 bg-black/40 border-purple-500/30 h-11" placeholder="+36 30 123 4567" />
                 {errors.phone && <p className="text-xs text-red-400 mt-1">{errors.phone.message}</p>}
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox id="isPublic" {...register("isPublic")} />
+                <Label htmlFor="isPublic" className="text-sm">Nyilvános a profilom</Label>
+                {errors.isPublic && <p className="text-xs text-red-400">{errors.isPublic.message}</p>}
               </div>
             </div>
             <div>

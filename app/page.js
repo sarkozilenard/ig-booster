@@ -68,7 +68,7 @@ export default function AccessPage() {
               </motion.div>
             </div>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-center tracking-tight">
-              <span className="neon-text">IG Booster</span>
+              <span className="neon-text">Social Booster</span>
             </h1>
             <p className="text-center text-muted-foreground mt-2 text-sm">
               Privát hozzáférés—add meg a hozzáférési kódot
@@ -100,7 +100,7 @@ export default function AccessPage() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
-          © {new Date().getFullYear()} IG Booster — Premium Instagram Growth
+          © {new Date().getFullYear()} Social Booster — Premium Social Growth
         </p>
       </motion.div>
     </main>

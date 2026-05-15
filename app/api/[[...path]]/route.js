@@ -7,7 +7,7 @@ import {
 } from 'firebase/firestore/lite';
 import { v4 as uuidv4 } from 'uuid';
 import { createToken, verifyToken, SESSION_COOKIE, ADMIN_COOKIE } from '@/lib/session';
-import { PACKAGES, getPackage } from '@/lib/pricing';
+import { PACKAGES } from '@/lib/pricing';
 
 // --- helpers ---
 const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
@@ -27,6 +27,14 @@ async function seedIfNeeded() {
       createdAt: Date.now(),
       note: 'Default welcome code'
     });
+  }
+
+  // Seed packages if collection empty
+  const packagesSnap = await getDocs(collection(db, 'packages'));
+  if (packagesSnap.empty) {
+    for (const p of PACKAGES) {
+      await setDoc(doc(db, 'packages', p.id), p);
+    }
   }
 }
 
@@ -66,6 +74,12 @@ function setCookie(name, value, maxAgeMs) {
 }
 function clearCookie(name) {
   cookies().set({ name, value: '', path: '/', maxAge: 0 });
+}
+
+// --- packages ---
+if (path === 'packages') {
+  const snap = await getDocs(collection(db, 'packages'));
+  return NextResponse.json(snap.docs.map(normalizeDoc));
 }
 
 // --- coupon helper ---
@@ -137,8 +151,8 @@ async function handle(req, params, method) {
   if (path === 'orders/create' && method === 'POST') {
     if (!(await requireUser())) return unauthorized();
     const body = await parseBodyOrEmpty(req);
-    const { fullName, instagramUsername, email, phone, notes, items, couponCode } = body || {};
-    if (!fullName || !instagramUsername || !email || !phone) return badRequest('Hiányzó mezők');
+    const { fullName, email, phone, notes, items, couponCode } = body || {};
+    if (!fullName || !email || !phone) return badRequest('Hiányzó mezők');
     if (!Array.isArray(items) || items.length === 0) return badRequest('A kosár üres');
 
     // recompute amounts server-side based on packageId
@@ -146,12 +160,20 @@ async function handle(req, params, method) {
     let totalFollowers = 0;
     const normItems = [];
     for (const it of items) {
-      const pkg = getPackage(it.packageId);
-      if (!pkg) return badRequest(`Ismeretlen csomag: ${it.packageId}`);
+      const pkgSnap = await getDoc(doc(db, 'packages', it.packageId));
+      if (!pkgSnap.exists()) return badRequest(`Ismeretlen csomag: ${it.packageId}`);
+      const pkg = pkgSnap.data();
       const qty = Math.max(1, Math.min(20, Math.floor(Number(it.quantity) || 1)));
+      const userHandle = (it.userHandle || '').trim();
+      if (!userHandle) return badRequest('Hiányzó felhasználónév egy termékhez');
+      const serviceType = pkg.serviceType || 'followers';
+      const mediaLink = (it.mediaLink || '').trim();
+      if (serviceType === 'like' && !mediaLink) return badRequest('Hiányzó poszt/videó link egy like termékhez');
       const lineTotal = pkg.price * qty;
       subtotal += lineTotal;
-      totalFollowers += (pkg.followers + (pkg.bonus || 0)) * qty;
+      if (serviceType === 'followers') {
+        totalFollowers += (pkg.followers + (pkg.bonus || 0)) * qty;
+      }
       normItems.push({
         packageId: pkg.id,
         followers: pkg.followers,
@@ -159,6 +181,9 @@ async function handle(req, params, method) {
         price: pkg.price,
         quantity: qty,
         subtotal: lineTotal,
+        userHandle,
+        mediaLink: serviceType === 'like' ? mediaLink : '',
+        serviceType,
       });
     }
 
@@ -177,7 +202,7 @@ async function handle(req, params, method) {
 
     const orderDoc = {
       orderId,
-      fullName, instagramUsername, email, phone, notes: notes || '',
+      fullName, email, phone, notes: notes || '',
       items: normItems,
       totalFollowers,
       subtotal, discount, total, currency: 'HUF',
@@ -326,6 +351,34 @@ async function handle(req, params, method) {
   if (path === 'admin/coupons/delete' && method === 'POST') {
     const body = await parseBodyOrEmpty(req);
     await deleteDoc(doc(db, 'coupons', body.code));
+    return NextResponse.json({ ok: true });
+  }
+
+  // === ADMIN: PACKAGES ===
+  if (path === 'admin/packages' && method === 'GET') {
+    const snap = await getDocs(collection(db, 'packages'));
+    return NextResponse.json({ packages: snap.docs.map(normalizeDoc) });
+  }
+  if (path === 'admin/packages' && method === 'POST') {
+    const body = await parseBodyOrEmpty(req);
+    let id = (body.id || '').trim();
+    if (!id) id = `social-${Date.now()}`;
+    const ref = doc(db, 'packages', id);
+    const exists = await getDoc(ref);
+    if (exists.exists()) return badRequest('A termék már létezik');
+    await setDoc(ref, {
+      id,
+      followers: Number(body.followers) || 100,
+      price: Number(body.price) || 1000,
+      bonus: Number(body.bonus) || 0,
+      popular: !!body.popular,
+      createdAt: Date.now(),
+    });
+    return NextResponse.json({ ok: true, id });
+  }
+  if (path === 'admin/packages/delete' && method === 'POST') {
+    const body = await parseBodyOrEmpty(req);
+    await deleteDoc(doc(db, 'packages', body.id));
     return NextResponse.json({ ok: true });
   }
 

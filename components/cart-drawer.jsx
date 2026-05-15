@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import Link from "next/link";
 
 export function CartDrawer() {
-  const { items, removeItem, updateQty, open, setOpen, coupon, setCoupon } = useCart();
+  const { items, removeItem, updateQty, updateItem, open, setOpen, coupon, setCoupon } = useCart();
   const [couponInput, setCouponInput] = useState("");
   const [applying, setApplying] = useState(false);
 
@@ -54,10 +54,26 @@ export function CartDrawer() {
                 <button onClick={() => removeItem(it.id)} className="absolute right-3 top-3 text-muted-foreground hover:text-red-400 transition">
                   <Trash2 className="h-4 w-4" />
                 </button>
-                <div className="text-sm text-muted-foreground">Instagram csomag</div>
+                <div className="text-sm text-muted-foreground">{it.serviceType === 'like' ? 'Like csomag' : 'Követő csomag'}</div>
                 <div className="text-lg font-bold">
-                  {it.followers.toLocaleString("hu-HU")} követő
+                  {it.followers.toLocaleString("hu-HU")} {it.serviceType === 'like' ? 'like' : 'követő'}
                   {it.bonus ? <span className="text-emerald-300 text-sm ml-1">+{it.bonus} 💎</span> : null}
+                </div>
+                <div className="mt-3 space-y-2">
+                  <Input
+                    value={it.userHandle || ''}
+                    onChange={(e) => updateItem(it.id, { userHandle: e.target.value })}
+                    placeholder="Profil felhasználónév"
+                    className="bg-black/40 border-purple-500/30"
+                  />
+                  {it.serviceType === 'like' && (
+                    <Input
+                      value={it.mediaLink || ''}
+                      onChange={(e) => updateItem(it.id, { mediaLink: e.target.value })}
+                      placeholder="Poszt / videó link"
+                      className="bg-black/40 border-purple-500/30"
+                    />
+                  )}
                 </div>
                 <div className="flex items-center gap-2 mt-2">
                   <div className="flex items-center gap-1">

@@ -8,7 +8,7 @@ import { AnimatedBackground } from "@/components/animated-background";
 import { ShopNav } from "@/components/shop-nav";
 import { CartDrawer } from "@/components/cart-drawer";
 import { useCart } from "@/components/cart-provider";
-import { PACKAGES, formatHUF, packageLabel } from "@/lib/pricing";
+import { PACKAGES, loadPackages, formatHUF, packageLabel } from "@/lib/pricing";
 import { Sparkles, Zap, ShieldCheck, Rocket, Users, Clock, Check, Plus, Gem, TrendingUp, Heart, Crown } from "lucide-react";
 import { toast } from "sonner";
 
@@ -45,6 +45,7 @@ export default function ShopPage() {
       if (!d.authenticated) router.replace("/");
       else setAuthChecked(true);
     });
+    loadPackages();
   }, [router]);
 
   if (!authChecked) {
@@ -63,6 +64,9 @@ export default function ShopPage() {
       price: p.price,
       quantity: 1,
       subtotal: p.price,
+      userHandle: '',
+      mediaLink: '',
+      serviceType: p.serviceType || 'followers',
     });
     toast.success(`Kosaradba téve: ${packageLabel(p)}`);
   };
@@ -77,13 +81,13 @@ export default function ShopPage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-16 pb-8 text-center">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
           <Badge className="mb-4 bg-purple-500/15 text-fuchsia-200 border border-fuchsia-500/30 hover:bg-purple-500/20">
-            <Sparkles className="h-3.5 w-3.5 mr-1" /> Premium Instagram Growth
+            <Sparkles className="h-3.5 w-3.5 mr-1" /> Premium Social Growth
           </Badge>
           <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[1.05]">
-            Növeld <span className="neon-text">Instagram</span><br className="hidden sm:block" /> követőidet villámgyorsan
+            Növeld <span className="neon-text">Social</span><br className="hidden sm:block" /> jelenléted villámgyorsan
           </h1>
           <p className="mt-5 text-muted-foreground text-base sm:text-lg max-w-2xl mx-auto">
-            Válaszd ki a tökéletes csomagot 50 és 10.000 követő között. Valódi profilok, garancia.
+            Válaszd ki a tökéletes csomagot 50 és 10.000 egység között. Valódi profilok, garancia.
           </p>
         </motion.div>
       </section>
@@ -127,7 +131,7 @@ export default function ShopPage() {
                     {p.followers.toLocaleString("hu-HU")}
                     {p.bonus && <span className="text-emerald-300 text-base ml-1">+{p.bonus}</span>}
                   </div>
-                  <div className="text-xs text-muted-foreground">Instagram követő</div>
+                  <div className="text-xs text-muted-foreground">{p.serviceType === 'like' ? 'Like' : 'Social követő'}</div>
 
                   <div className="mt-4 flex items-baseline gap-2">
                     <div className="text-2xl font-bold neon-text">{formatHUF(p.price)}</div>
@@ -151,7 +155,7 @@ export default function ShopPage() {
 
       {/* FEATURES */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
-        <h3 className="text-2xl sm:text-3xl font-bold text-center">Miért az <span className="neon-text">IG Booster</span>?</h3>
+        <h3 className="text-2xl sm:text-3xl font-bold text-center">Miért az <span className="neon-text">Social Booster</span>?</h3>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
           {FEATURES.map((f, i) => (
             <motion.div key={f.title} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05 }}
@@ -182,8 +186,17 @@ export default function ShopPage() {
         </div>
       </section>
 
+      <section className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
+        <div className="glass rounded-3xl p-8 border border-purple-500/20 bg-[#0e0a19]/80">
+          <h3 className="text-2xl sm:text-3xl font-bold text-center">Garancia / Visszatöltés</h3>
+          <p className="text-sm text-muted-foreground mt-4 leading-7">
+            Amennyiben bármi gond lenne a megvásárolt szolgáltatással, csak küldd el nekünk a rendelés számát vagy a fiók nevét, és mi azonnal utánanézünk!
+          </p>
+        </div>
+      </section>
+
       <footer className="border-t border-purple-500/15 mt-12 py-8 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} IG Booster — Premium Instagram Growth
+        © {new Date().getFullYear()} Social Booster — Premium Social Growth
       </footer>
     </main>
   );
