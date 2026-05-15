@@ -125,6 +125,10 @@ function normalizeDoc(d) {
   return { id: d.id, ...data };
 }
 
+function findLocalPackage(packageId) {
+  return PACKAGES.find((p) => p.id === packageId) || null;
+}
+
 function parseBodyOrEmpty(req) {
   return req.json().catch(() => ({}));
 }
@@ -248,8 +252,15 @@ async function handle(req, params, method) {
     const normItems = [];
     for (const it of items) {
       const pkgSnap = await getDoc(doc(db, 'packages', it.packageId));
-      if (!pkgSnap.exists()) return badRequest(`Ismeretlen csomag: ${it.packageId}`);
-      const pkg = pkgSnap.data();
+      let pkg = pkgSnap.exists() ? pkgSnap.data() : null;
+      if (!pkg) {
+        pkg = findLocalPackage(it.packageId);
+        if (pkg) {
+          console.warn(`Package ${it.packageId} missing from Firestore, using local package config.`);
+          await setDoc(doc(db, 'packages', pkg.id), pkg).catch(() => {});
+        }
+      }
+      if (!pkg) return badRequest(`Ismeretlen csomag: ${it.packageId}`);
       const qty = Math.max(1, Math.min(20, Math.floor(Number(it.quantity) || 1)));
       const userHandle = (it.userHandle || '').trim();
       if (!userHandle) return badRequest('Hiányzó felhasználónév egy termékhez');

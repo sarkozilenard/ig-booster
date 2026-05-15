@@ -193,6 +193,8 @@ export default function CheckoutPage() {
                 <div className="flex justify-between text-sm text-emerald-300"><span>Kupon ({coupon.code})</span><span>- {formatHUF(discount)}</span></div>
               )}
               <div className="flex justify-between text-lg font-bold mt-2"><span>Végösszeg</span><span className="neon-text">{formatHUF(total)}</span></div>
+              <div className="mt-4 text-sm text-muted-foreground">Fizetési módok: készpénz, Revolut, utalás.</div>
+              <div className="mt-2 text-xs text-muted-foreground">Visszaigazoló emailt küldünk, ha SMTP konfigurálva van.</div>
             </div>
           </div>
         </div>
