@@ -105,7 +105,7 @@ export default function ShopPage() {
                 key={item}
                 type="button"
                 onClick={() => setPlatform(item)}
-                className={`px-4 py-2 text-sm font-semibold transition ${platform === item ? 'bg-fuchsia-500 text-white shadow-lg' : 'text-muted-foreground hover:text-white'}`}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${platform === item ? 'bg-fuchsia-500 text-white shadow-lg' : 'text-muted-foreground hover:text-white'}`}
               >
                 {item === 'instagram' ? 'Instagram' : 'TikTok'}
               </button>
@@ -114,7 +114,10 @@ export default function ShopPage() {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {PACKAGES.map((p, i) => {
+          {PACKAGES.filter(p => (p.platform || 'instagram') === platform)
+            .slice()
+            .sort((a, b) => (a.followers || 0) - (b.followers || 0))
+            .map((p, i) => {
             const Icon = pkgIcon(p);
             const unitPrice = (p.price / p.followers).toFixed(1);
             return (
@@ -130,10 +133,10 @@ export default function ShopPage() {
                 {/* gradient backdrop */}
                 <div className="absolute -top-20 -right-20 h-40 w-40 rounded-full bg-gradient-to-br from-fuchsia-500/40 to-purple-600/30 blur-3xl group-hover:scale-125 transition-transform duration-700" />
 
-                {p.popular && (
+                {Boolean(p.popular) && (
                   <div className="absolute top-3 right-3 text-[10px] font-bold tracking-wider px-2 py-0.5 rounded-full bg-gradient-to-r from-fuchsia-500 to-pink-500 shadow-lg">POPULÁRIS</div>
                 )}
-                {p.bonus && (
+                {Boolean(p.bonus) && (
                   <div className="absolute top-3 left-3 text-[10px] font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 border border-emerald-400/40">+{p.bonus} INGYEN</div>
                 )}
 
@@ -143,10 +146,10 @@ export default function ShopPage() {
                   </div>
                   <div className="mt-4 text-3xl font-extrabold tracking-tight">
                     {p.followers.toLocaleString("hu-HU")}
-                    {p.bonus && <span className="text-emerald-300 text-base ml-1">+{p.bonus}</span>}
+                    {Boolean(p.bonus) && <span className="text-emerald-300 text-base ml-1">+{p.bonus}</span>}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {p.serviceType === 'like' ? 'Like' : `${platform === 'instagram' ? 'Instagram' : 'TikTok'} követő`}
+                    {p.serviceType === 'like' ? `${p.platform === 'tiktok' ? 'TikTok' : 'Instagram'} like` : `${p.platform === 'tiktok' ? 'TikTok' : 'Instagram'} követő`}
                   </div>
 
                   <div className="mt-4 flex items-baseline gap-2">
@@ -208,11 +211,23 @@ export default function ShopPage() {
           <p className="text-sm text-muted-foreground mt-4 leading-7">
             Amennyiben bármi gond lenne a megvásárolt szolgáltatással, csak küldd el nekünk a rendelés számát vagy a fiók nevét, és mi azonnal utánanézünk!
           </p>
+          <div className="mt-4 text-sm text-muted-foreground">
+            <div>Támogatási email: <span className="font-mono text-fuchsia-300">social-booster@sarkozilenard.com</span></div>
+            <div className="mt-3">
+              <Button onClick={() => {
+                const to = 'social-booster@sarkozilenard.com';
+                const subject = encodeURIComponent('Garancia / Visszatöltés - Social Booster');
+                const body = encodeURIComponent('Kedves Support,%0D%0A%0D%0ASzeretnék garanciális/visszatöltési ügyben segítséget kérni.%0D%0ARendelés szám:%0D%0AFelhasználónév:%0D%0ARészletek:%0D%0A%0D%0AKöszönettel,');
+                window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
+              }} className="bg-fuchsia-600">Írj nekünk</Button>
+            </div>
+          </div>
         </div>
       </section>
 
-      <footer className="border-t border-purple-500/15 mt-12 py-8 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Social Booster — Premium Social Growth
+      <footer className="border-t border-purple-500/15 mt-12 py-8 text-center text-xs text-muted-foreground space-y-2">
+        <div>© {new Date().getFullYear()} Social Booster — Premium Social Growth</div>
+        <div>Támogatás: <a href="mailto:social-booster@sarkozilenard.com" className="text-fuchsia-300 hover:underline">social-booster@sarkozilenard.com</a></div>
       </footer>
     </main>
   );

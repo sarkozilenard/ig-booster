@@ -3,10 +3,10 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  experimental: {
-    // Remove if not using Server Components
-    serverComponentsExternalPackages: ['mongodb'],
-  },
+  // Move experimental serverComponentsExternalPackages to serverExternalPackages (Next 16+)
+  serverExternalPackages: ['mongodb'],
+  // Provide an explicit turbopack config to avoid Turbopack/webpack warning
+  turbopack: {},
   webpack(config, { dev }) {
     if (dev) {
       // Reduce CPU/memory from file watching

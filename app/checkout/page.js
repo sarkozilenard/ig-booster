@@ -145,6 +145,7 @@ export default function CheckoutPage() {
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
               Az adataid biztonságban vannak. Nem kérjük a jelszavadat.
             </div>
+            <div className="text-xs text-muted-foreground">Support: <a href="mailto:social-booster@sarkozilenard.com" className="text-fuchsia-300 hover:underline">{"social-booster@sarkozilenard.com".toUpperCase()}</a></div>
           </form>
 
           <div className="lg:col-span-2">

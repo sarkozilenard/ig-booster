@@ -74,6 +74,9 @@ export default function AdminDashboard() {
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" onClick={refresh} disabled={refreshing}><RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /></Button>
+            <Button variant="ghost" onClick={() => window.open('https://smm-panel.net', '_blank')}>
+              SMM Panel
+            </Button>
             <Button variant="ghost" onClick={logout}><LogOut className="h-4 w-4" /></Button>
           </div>
         </div>
@@ -279,12 +282,12 @@ function CodesTab({ codes, onChange }) {
 }
 function PackagesTab({ packages, onChange }) {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ id: "", followers: 100, price: 1000, bonus: 0, popular: false, serviceType: "followers" });
+  const [form, setForm] = useState({ id: "", followers: 100, price: 1000, bonus: 0, popular: false, serviceType: "followers", platform: "instagram" });
   const create = async () => {
     const res = await fetch("/api/admin/packages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
     const d = await res.json();
     if (!res.ok) { toast.error(d.error || "Hiba"); return; }
-    toast.success(`Termék hozzáadva: ${d.id}`); setOpen(false); setForm({ id: "", followers: 100, price: 1000, bonus: 0, popular: false }); onChange();
+    toast.success(`Termék hozzáadva: ${d.id}`); setOpen(false); setForm({ id: "", followers: 100, price: 1000, bonus: 0, popular: false, serviceType: "followers", platform: "instagram" }); onChange();
   };
   const del = async (id) => {
     if (!confirm("Törlés?")) return;
@@ -303,6 +306,17 @@ function PackagesTab({ packages, onChange }) {
               <div><Label>ID (opcionális, auto-generálás ha üres)</Label><Input value={form.id} onChange={e => setForm({ ...form, id: e.target.value })} placeholder="social-100" className="bg-black/40" /></div>
               <div><Label>Követők / Like mennyiség</Label><Input type="number" min={1} value={form.followers} onChange={e => setForm({ ...form, followers: Number(e.target.value) })} className="bg-black/40" /></div>
               <div><Label>Ár (HUF)</Label><Input type="number" min={1} value={form.price} onChange={e => setForm({ ...form, price: Number(e.target.value) })} className="bg-black/40" /></div>
+              <div><Label>Platform</Label>
+                <Select value={form.platform} onValueChange={(value) => setForm({ ...form, platform: value })}>
+                  <SelectTrigger className="h-11 bg-black/40 border-purple-500/30">
+                    <SelectValue placeholder="Válassz platformot" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="instagram">Instagram</SelectItem>
+                    <SelectItem value="tiktok">TikTok</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div><Label>Szolgáltatás</Label>
                 <Select value={form.serviceType} onValueChange={(value) => setForm({ ...form, serviceType: value })}>
                   <SelectTrigger className="h-11 bg-black/40 border-purple-500/30">
@@ -322,9 +336,9 @@ function PackagesTab({ packages, onChange }) {
         </Dialog>
       </div>
       <div className="space-y-2">
-        {packages.map(p => (
+        {([...packages].sort((a, b) => (a.followers || 0) - (b.followers || 0))).map(p => (
           <div key={p.id} className="flex justify-between items-center p-3 bg-purple-500/10 rounded">
-            <span>{p.id}: {p.followers.toLocaleString("hu-HU")} {p.serviceType === 'like' ? 'like' : 'követő'} - {formatHUF(p.price)} {p.bonus ? `+${p.bonus}` : ""} {p.popular ? "⭐" : ""}</span>
+            <span>{p.id}: {p.followers.toLocaleString("hu-HU")} {p.serviceType === 'like' ? `${p.platform === 'tiktok' ? 'TikTok' : 'Instagram'} like` : `${p.platform === 'tiktok' ? 'TikTok' : 'Instagram'} követő`} - {formatHUF(p.price)} {p.bonus ? `+${p.bonus}` : ""} {p.popular ? "⭐" : ""}</span>
             <Button size="icon" variant="ghost" onClick={() => del(p.id)}><Trash2 className="h-4 w-4 text-red-400" /></Button>
           </div>
         ))}

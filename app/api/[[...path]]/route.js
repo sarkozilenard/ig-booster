@@ -6,8 +6,70 @@ import {
   query, where, orderBy, limit, addDoc
 } from 'firebase/firestore/lite';
 import { v4 as uuidv4 } from 'uuid';
+import nodemailer from 'nodemailer';
 import { createToken, verifyToken, SESSION_COOKIE, ADMIN_COOKIE } from '@/lib/session';
-import { PACKAGES } from '@/lib/pricing';
+import { PACKAGES, formatHUF } from '@/lib/pricing';
+
+// === email setup ===
+const SUPPORT_EMAIL = 'social-booster@sarkozilenard.com';
+const NOTIFY_EMAILS = ['social-booster@sarkozilenard.com', 'sarkozilenard@gmail.com'];
+const EMAIL_FROM = process.env.EMAIL_FROM || SUPPORT_EMAIL;
+const SMTP_CONFIG = process.env.SMTP_HOST ? {
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT || 587),
+  secure: process.env.SMTP_SECURE === 'true',
+  auth: process.env.SMTP_USER && process.env.SMTP_PASS ? {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  } : undefined,
+} : null;
+const transporter = SMTP_CONFIG ? nodemailer.createTransport(SMTP_CONFIG) : null;
+
+async function sendOrderNotification(order) {
+  if (!transporter) {
+    console.warn('Order notification skipped: SMTP not configured');
+    return;
+  }
+  const htmlItems = order.items.map(it => {
+    const itemLabel = it.serviceType === 'like'
+      ? `${it.platform === 'tiktok' ? 'TikTok' : 'Instagram'} like`
+      : `${it.platform === 'tiktok' ? 'TikTok' : 'Instagram'} követő`;
+    return `
+      <li style="margin-bottom:12px;">
+        <strong>${it.quantity}× ${it.followers} ${itemLabel}</strong><br/>
+        Ár: ${formatHUF(it.subtotal)}<br/>
+        Profil: ${it.userHandle}<br/>
+        ${it.mediaLink ? `Link: ${it.mediaLink}<br/>` : ''}
+      </li>
+    `;
+  }).join('');
+  const html = `
+    <h2>Új rendelés érkezett</h2>
+    <p><strong>Rendelés ID:</strong> ${order.orderId}</p>
+    <p><strong>Vevő:</strong> ${order.fullName} (${order.email})</p>
+    <p><strong>Telefon:</strong> ${order.phone}</p>
+    <p><strong>Összeg:</strong> ${formatHUF(order.total)}</p>
+    <p><strong>Kupon:</strong> ${order.coupon?.code || 'nincs'}</p>
+    <p><strong>Megjegyzés:</strong> ${order.notes || '–'}</p>
+    <h3>Termékek</h3>
+    <ul>${htmlItems}</ul>
+  `;
+  const textItems = order.items.map(it => {
+    const itemLabel = it.serviceType === 'like'
+      ? `${it.platform === 'tiktok' ? 'TikTok' : 'Instagram'} like`
+      : `${it.platform === 'tiktok' ? 'TikTok' : 'Instagram'} követő`;
+    return `${it.quantity}× ${it.followers} ${itemLabel} - ${formatHUF(it.subtotal)}\nProfil: ${it.userHandle}${it.mediaLink ? `\nLink: ${it.mediaLink}` : ''}`;
+  }).join('\n\n');
+  const text = `Új rendelés érkezett\n\nRendelés ID: ${order.orderId}\nVevő: ${order.fullName} (${order.email})\nTelefon: ${order.phone}\nÖsszeg: ${formatHUF(order.total)}\nKupon: ${order.coupon?.code || 'nincs'}\nMegjegyzés: ${order.notes || '–'}\n\nTermékek:\n${textItems}`;
+
+  await transporter.sendMail({
+    from: EMAIL_FROM,
+    to: NOTIFY_EMAILS.join(','),
+    subject: `[Social Booster] Új rendelés ${order.orderId}`,
+    text,
+    html,
+  });
+}
 
 // --- helpers ---
 const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
@@ -52,18 +114,21 @@ function unauthorized() { return NextResponse.json({ error: 'Unauthorized' }, { 
 function notFound() { return NextResponse.json({ error: 'Not found' }, { status: 404 }); }
 
 async function requireUser() {
-  const token = cookies().get(SESSION_COOKIE)?.value;
+  const c = await cookies();
+  const token = c.get(SESSION_COOKIE)?.value;
   return verifyToken(token);
 }
 async function requireAdmin() {
-  const token = cookies().get(ADMIN_COOKIE)?.value;
+  const c = await cookies();
+  const token = c.get(ADMIN_COOKIE)?.value;
   const payload = verifyToken(token);
   if (!payload || payload.role !== 'admin') return null;
   return payload;
 }
 
-function setCookie(name, value, maxAgeMs) {
-  cookies().set({
+async function setCookie(name, value, maxAgeMs) {
+  const c = await cookies();
+  c.set({
     name, value,
     httpOnly: true,
     sameSite: 'lax',
@@ -72,8 +137,9 @@ function setCookie(name, value, maxAgeMs) {
     maxAge: Math.floor(maxAgeMs / 1000),
   });
 }
-function clearCookie(name) {
-  cookies().set({ name, value: '', path: '/', maxAge: 0 });
+async function clearCookie(name) {
+  const c = await cookies();
+  c.set({ name, value: '', path: '/', maxAge: 0 });
 }
 
 // --- coupon helper ---
@@ -124,7 +190,7 @@ async function handle(req, params, method) {
 
     const maxAge = remember ? 30 * 24 * 60 * 60 * 1000 : SEVEN_DAYS;
     const token = createToken({ role: 'user', code, exp: Date.now() + maxAge });
-    setCookie(SESSION_COOKIE, token, maxAge);
+    await setCookie(SESSION_COOKIE, token, maxAge);
     return NextResponse.json({ ok: true });
   }
 
@@ -134,7 +200,7 @@ async function handle(req, params, method) {
   }
 
   if (path === 'access/logout' && method === 'POST') {
-    clearCookie(SESSION_COOKIE);
+    await clearCookie(SESSION_COOKIE);
     return NextResponse.json({ ok: true });
   }
 
@@ -213,6 +279,9 @@ async function handle(req, params, method) {
       createdAt: Date.now(),
     };
     await setDoc(doc(db, 'orders', orderId), orderDoc);
+    await sendOrderNotification(orderDoc).catch((error) => {
+      console.error('Order notification failed', error);
+    });
     return NextResponse.json({ ok: true, orderId, total });
   }
 
@@ -231,11 +300,11 @@ async function handle(req, params, method) {
       return NextResponse.json({ error: 'Hibás admin jelszó' }, { status: 401 });
     }
     const token = createToken({ role: 'admin', exp: Date.now() + ONE_DAY });
-    setCookie(ADMIN_COOKIE, token, ONE_DAY);
+    await setCookie(ADMIN_COOKIE, token, ONE_DAY);
     return NextResponse.json({ ok: true });
   }
   if (path === 'admin/logout' && method === 'POST') {
-    clearCookie(ADMIN_COOKIE);
+    await clearCookie(ADMIN_COOKIE);
     return NextResponse.json({ ok: true });
   }
   if (path === 'admin/me' && method === 'GET') {
@@ -375,6 +444,7 @@ async function handle(req, params, method) {
       bonus: Number(body.bonus) || 0,
       popular: !!body.popular,
       serviceType: body.serviceType === 'like' ? 'like' : 'followers',
+      platform: body.platform === 'tiktok' ? 'tiktok' : 'instagram',
       createdAt: Date.now(),
     });
     return NextResponse.json({ ok: true, id });
