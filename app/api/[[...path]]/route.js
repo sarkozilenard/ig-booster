@@ -76,12 +76,6 @@ function clearCookie(name) {
   cookies().set({ name, value: '', path: '/', maxAge: 0 });
 }
 
-// --- packages ---
-if (path === 'packages') {
-  const snap = await getDocs(collection(db, 'packages'));
-  return NextResponse.json(snap.docs.map(normalizeDoc));
-}
-
 // --- coupon helper ---
 async function validateCouponCode(code) {
   if (!code) return null;
@@ -99,6 +93,12 @@ async function validateCouponCode(code) {
 async function handle(req, params, method) {
   const path = (params?.path || []).join('/');
   await seedIfNeeded().catch(() => {});
+
+  // === PACKAGES ===
+  if (path === 'packages') {
+    const snap = await getDocs(collection(db, 'packages'));
+    return NextResponse.json(snap.docs.map(normalizeDoc));
+  }
 
   // Health
   if (path === '' || path === 'health') {
@@ -372,6 +372,7 @@ async function handle(req, params, method) {
       price: Number(body.price) || 1000,
       bonus: Number(body.bonus) || 0,
       popular: !!body.popular,
+      serviceType: body.serviceType === 'like' ? 'like' : 'followers',
       createdAt: Date.now(),
     });
     return NextResponse.json({ ok: true, id });
