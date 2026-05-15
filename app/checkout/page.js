@@ -77,6 +77,7 @@ export default function CheckoutPage() {
           })),
           couponCode: coupon?.code,
         }),
+      });
       const out = await res.json();
       if (!res.ok) { toast.error(out.error || "Hiba"); return; }
       toast.success("Megrendelés leadva!");
