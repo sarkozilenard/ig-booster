@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Input } from "@/components/ui/input";
@@ -33,7 +33,7 @@ export default function CheckoutPage() {
   const [authChecked, setAuthChecked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const { register, control, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
     defaultValues: { fullName: "", email: "", phone: "", notes: "", isPublic: false }
   });
@@ -127,7 +127,17 @@ export default function CheckoutPage() {
                 {errors.phone && <p className="text-xs text-red-400 mt-1">{errors.phone.message}</p>}
               </div>
               <div className="flex items-center space-x-2">
-                <Checkbox id="isPublic" {...register("isPublic")} />
+                <Controller
+                  control={control}
+                  name="isPublic"
+                  render={({ field }) => (
+                    <Checkbox
+                      id="isPublic"
+                      checked={field.value}
+                      onCheckedChange={(checked) => field.onChange(checked)}
+                    />
+                  )}
+                />
                 <Label htmlFor="isPublic" className="text-sm">Nyilvános a profilom</Label>
                 {errors.isPublic && <p className="text-xs text-red-400">{errors.isPublic.message}</p>}
               </div>
@@ -145,7 +155,7 @@ export default function CheckoutPage() {
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
               Az adataid biztonságban vannak. Nem kérjük a jelszavadat.
             </div>
-            <div className="text-xs text-muted-foreground">Support: <a href="mailto:social-booster@sarkozilenard.com" className="text-fuchsia-300 hover:underline">{"social-booster@sarkozilenard.com".toUpperCase()}</a></div>
+            <div className="text-xs text-muted-foreground">Support: <a href="mailto:social-booster@sarkozilenard.com" className="text-fuchsia-300 hover:underline">social-booster@sarkozilenard.com</a></div>
           </form>
 
           <div className="lg:col-span-2">
@@ -157,14 +167,22 @@ export default function CheckoutPage() {
               {items.length === 0 ? (
                 <div className="text-sm text-muted-foreground">A kosarad üres</div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {items.map(i => (
-                    <div key={i.id} className="flex justify-between text-sm">
-                      <span>
-                        {i.quantity}× {i.followers.toLocaleString("hu-HU")} {i.serviceType === 'like' ? 'like' : `${(i.platform || 'instagram') === 'instagram' ? 'Instagram' : 'TikTok'} követő`}
-                        {i.bonus ? <span className="text-emerald-300"> +{i.bonus}</span> : null}
-                      </span>
-                      <span className="font-semibold">{formatHUF(i.subtotal)}</span>
+                    <div key={i.id} className="rounded-2xl border border-purple-500/10 p-3 bg-[#090615]/80">
+                      <div className="flex justify-between text-sm font-semibold">
+                        <span>
+                          {i.quantity}× {i.followers.toLocaleString("hu-HU")} {i.serviceType === 'like' ? 'like' : `${(i.platform || 'instagram') === 'instagram' ? 'Instagram' : 'TikTok'} követő`}
+                          {i.bonus ? <span className="text-emerald-300"> +{i.bonus}</span> : null}
+                        </span>
+                        <span>{formatHUF(i.subtotal)}</span>
+                      </div>
+                      {i.userHandle ? (
+                        <div className="text-xs text-muted-foreground mt-1">Profil: <span className="text-white">{i.userHandle}</span></div>
+                      ) : null}
+                      {i.mediaLink ? (
+                        <div className="text-xs text-muted-foreground mt-1 break-all">Link: <a href={i.mediaLink} target="_blank" rel="noreferrer" className="text-fuchsia-300 hover:underline">{i.mediaLink}</a></div>
+                      ) : null}
                     </div>
                   ))}
                 </div>

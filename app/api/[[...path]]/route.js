@@ -69,6 +69,26 @@ async function sendOrderNotification(order) {
     text,
     html,
   });
+
+  if (order.email) {
+    const buyerHtml = `
+      <h2>Köszönjük a rendelésedet!</h2>
+      <p>Rendelés azonosító: <strong>${order.orderId}</strong></p>
+      <p>Összeg: ${formatHUF(order.total)}</p>
+      <h3>Termékek</h3>
+      <ul>${htmlItems}</ul>
+      <p>Ha kérdésed van, írj a ${SUPPORT_EMAIL} címre.</p>
+    `;
+    const buyerText = `Köszönjük a rendelésedet!\n\nRendelés azonosító: ${order.orderId}\nÖsszeg: ${formatHUF(order.total)}\n\nTermékek:\n${textItems}\n\nHa kérdésed van, írj a ${SUPPORT_EMAIL} címre.`;
+
+    await transporter.sendMail({
+      from: EMAIL_FROM,
+      to: order.email,
+      subject: `[Social Booster] Rendelés visszaigazolás ${order.orderId}`,
+      text: buyerText,
+      html: buyerHtml,
+    });
+  }
 }
 
 // --- helpers ---
@@ -129,10 +149,11 @@ async function requireAdmin() {
 async function setCookie(name, value, maxAgeMs) {
   const c = await cookies();
   c.set({
-    name, value,
+    name,
+    value,
     httpOnly: true,
     sameSite: 'lax',
-    secure: true,
+    secure: process.env.NODE_ENV === 'production',
     path: '/',
     maxAge: Math.floor(maxAgeMs / 1000),
   });
