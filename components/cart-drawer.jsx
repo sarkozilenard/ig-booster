@@ -8,10 +8,11 @@ import { Trash2, ShoppingBag, Ticket, X, Minus, Plus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { toast } from "sonner";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export function CartDrawer() {
   const { items, removeItem, updateQty, updateItem, open, setOpen, coupon, setCoupon } = useCart();
+  const router = useRouter();
   const [couponInput, setCouponInput] = useState("");
   const [applying, setApplying] = useState(false);
 
@@ -126,11 +127,24 @@ export function CartDrawer() {
             <span className="neon-text">{formatHUF(total)}</span>
           </div>
 
-          <Link href="/checkout" onClick={() => setOpen(false)}>
-            <Button disabled={items.length === 0} className="w-full h-12 text-base font-semibold bg-gradient-to-r from-fuchsia-600 via-pink-600 to-purple-600 hover:opacity-95 glow">
+          <div>
+            <Button
+              onClick={() => {
+                if (items.length === 0) return;
+                const missing = items.find(it => !(it.userHandle || '').trim());
+                if (missing) {
+                  toast.error('Adj meg minden termékhez felhasználónevet');
+                  return;
+                }
+                setOpen(false);
+                router.push('/checkout');
+              }}
+              disabled={items.length === 0}
+              className="w-full h-12 text-base font-semibold bg-gradient-to-r from-fuchsia-600 via-pink-600 to-purple-600 hover:opacity-95 glow"
+            >
               Tovább a checkoutra
             </Button>
-          </Link>
+          </div>
         </div>
       </SheetContent>
     </Sheet>

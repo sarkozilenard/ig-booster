@@ -62,13 +62,19 @@ async function sendOrderNotification(order) {
   }).join('\n\n');
   const text = `Új rendelés érkezett\n\nRendelés ID: ${order.orderId}\nVevő: ${order.fullName} (${order.email})\nTelefon: ${order.phone}\nÖsszeg: ${formatHUF(order.total)}\nKupon: ${order.coupon?.code || 'nincs'}\nMegjegyzés: ${order.notes || '–'}\n\nTermékek:\n${textItems}`;
 
-  await transporter.sendMail({
-    from: EMAIL_FROM,
-    to: NOTIFY_EMAILS.join(','),
-    subject: `[Social Booster] Új rendelés ${order.orderId}`,
-    text,
-    html,
-  });
+  // Try sending to notify emails; on failure enqueue for retry
+  try {
+    await transporter.sendMail({
+      from: EMAIL_FROM,
+      to: NOTIFY_EMAILS.join(','),
+      subject: `[Social Booster] Új rendelés ${order.orderId}`,
+      text,
+      html,
+    });
+  } catch (err) {
+    console.error('Admin notification send failed, enqueueing', err && err.message ? err.message : err);
+    await queueEmail(NOTIFY_EMAILS.join(','), `[Social Booster] Új rendelés ${order.orderId}`, text, html, order.orderId, err && err.message);
+  }
 
   if (order.email) {
     const buyerHtml = `
@@ -80,14 +86,38 @@ async function sendOrderNotification(order) {
       <p>Ha kérdésed van, írj a ${SUPPORT_EMAIL} címre.</p>
     `;
     const buyerText = `Köszönjük a rendelésedet!\n\nRendelés azonosító: ${order.orderId}\nÖsszeg: ${formatHUF(order.total)}\n\nTermékek:\n${textItems}\n\nHa kérdésed van, írj a ${SUPPORT_EMAIL} címre.`;
+    try {
+      await transporter.sendMail({
+        from: EMAIL_FROM,
+        to: order.email,
+        subject: `[Social Booster] Rendelés visszaigazolás ${order.orderId}`,
+        text: buyerText,
+        html: buyerHtml,
+      });
+    } catch (err) {
+      console.error('Buyer notification send failed, enqueueing', err && err.message ? err.message : err);
+      await queueEmail(order.email, `[Social Booster] Rendelés visszaigazolás ${order.orderId}`, buyerText, buyerHtml, order.orderId, err && err.message);
+    }
+  }
+}
 
-    await transporter.sendMail({
-      from: EMAIL_FROM,
-      to: order.email,
-      subject: `[Social Booster] Rendelés visszaigazolás ${order.orderId}`,
-      text: buyerText,
-      html: buyerHtml,
+// --- Email queue helpers ---
+async function queueEmail(to, subject, text, html, orderId = null, lastError = null) {
+  try {
+    await addDoc(collection(db, 'emailQueue'), {
+      orderId: orderId || null,
+      to,
+      subject,
+      text,
+      html: html || null,
+      attempts: 0,
+      status: 'pending',
+      lastError: lastError || null,
+      nextAttemptAt: Date.now(),
+      createdAt: Date.now(),
     });
+  } catch (e) {
+    console.error('Failed to enqueue email', e && e.message ? e.message : e);
   }
 }
 
@@ -346,6 +376,39 @@ async function handle(req, params, method) {
   // From here on, admin only
   if (path.startsWith('admin/')) {
     if (!(await requireAdmin())) return unauthorized();
+  }
+
+  // === ADMIN: process email queue ===
+  if (path === 'admin/email-queue/process' && method === 'POST') {
+    // find pending jobs ready to run
+    const now = Date.now();
+    const q = query(collection(db, 'emailQueue'), where('status', '==', 'pending'), where('nextAttemptAt', '<=', now), orderBy('nextAttemptAt'), limit(20));
+    const snap = await getDocs(q);
+    const results = [];
+    for (const d of snap.docs) {
+      const job = d.data();
+      const ref = doc(db, 'emailQueue', d.id);
+      try {
+        const info = await transporter.sendMail({
+          from: EMAIL_FROM,
+          to: job.to,
+          subject: job.subject,
+          text: job.text,
+          html: job.html || undefined,
+        });
+        await updateDoc(ref, { status: 'sent', attempts: (job.attempts || 0) + 1, sentAt: Date.now(), messageId: info && info.messageId ? info.messageId : null });
+        results.push({ id: d.id, ok: true });
+      } catch (err) {
+        const attempts = (job.attempts || 0) + 1;
+        const nextDelay = Math.min(60 * 60 * 1000, Math.pow(2, attempts) * 60 * 1000); // cap 1 hour
+        const nextAttemptAt = Date.now() + nextDelay;
+        const update = { attempts, lastError: err && err.message ? err.message : String(err), nextAttemptAt };
+        if (attempts >= 5) update.status = 'failed';
+        await updateDoc(ref, update);
+        results.push({ id: d.id, ok: false, error: err && err.message ? err.message : String(err) });
+      }
+    }
+    return NextResponse.json({ processed: results.length, results });
   }
 
   // === ADMIN: STATS ===

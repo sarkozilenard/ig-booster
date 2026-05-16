@@ -29,9 +29,11 @@ const schema = z.object({
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, coupon, clear } = useCart();
+  const { items, coupon, clear, setCoupon } = useCart();
   const [authChecked, setAuthChecked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [couponInput, setCouponInput] = useState("");
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
 
   const { register, control, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
@@ -47,6 +49,26 @@ export default function CheckoutPage() {
   const subtotal = items.reduce((s, i) => s + i.subtotal, 0);
   const discount = coupon ? Math.round(subtotal * (coupon.discountPercent / 100)) : 0;
   const total = subtotal - discount;
+
+  const applyCoupon = async () => {
+    if (!couponInput.trim()) { toast.error("Adj meg egy kuponkódot"); return; }
+    setApplyingCoupon(true);
+    try {
+      const res = await fetch("/api/coupon/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: couponInput }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error || "Hibás kupon"); return; }
+      setCoupon({ code: data.code, discountPercent: data.discountPercent });
+      toast.success(`Kupon aktiválva: -${data.discountPercent}%`);
+    } catch (error) {
+      toast.error("Kupon érvényesítése sikertelen");
+    } finally {
+      setApplyingCoupon(false);
+    }
+  };
 
   const onSubmit = async (data) => {
     if (items.length === 0) { toast.error("A kosarad üres"); return; }
@@ -143,6 +165,22 @@ export default function CheckoutPage() {
               </div>
             </div>
             <div>
+              <Label>Kuponkód</Label>
+              <div className="flex gap-2 mt-1">
+                <Input value={couponInput} onChange={(e) => setCouponInput(e.target.value)} className="flex-1 bg-black/40 border-purple-500/30 h-11" placeholder="Pl. SOCIAL10" />
+                <Button type="button" disabled={applyingCoupon || !couponInput.trim()} onClick={applyCoupon} className="h-11 px-4 text-sm">
+                  {applyingCoupon ? 'Ellenőrzés...' : 'Alkalmaz'}
+                </Button>
+              </div>
+              {coupon ? (
+                <div className="mt-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm text-emerald-200 flex items-center justify-between">
+                  <span>Kupon: <strong>{coupon.code}</strong> (-{coupon.discountPercent}%)</span>
+                  <button type="button" onClick={() => setCoupon(null)} className="text-xs text-muted-foreground hover:text-white">Törlés</button>
+                </div>
+              ) : null}
+            </div>
+
+            <div>
               <Label>Megjegyzés (opcionális)</Label>
               <Textarea {...register("notes")} className="mt-1 bg-black/40 border-purple-500/30" placeholder="Egyéb információ..." />
             </div>
@@ -195,6 +233,13 @@ export default function CheckoutPage() {
               <div className="flex justify-between text-lg font-bold mt-2"><span>Végösszeg</span><span className="neon-text">{formatHUF(total)}</span></div>
               <div className="mt-4 text-sm text-muted-foreground">Fizetési módok: készpénz, Revolut, utalás.</div>
               <div className="mt-2 text-xs text-muted-foreground">Visszaigazoló emailt küldünk, ha SMTP konfigurálva van.</div>
+              <div className="mt-6 rounded-3xl border border-purple-500/20 bg-[#0e0a19]/80 p-5 text-sm space-y-3">
+                <h3 className="text-lg font-semibold">Garanciális feltételek</h3>
+                <p>Lifetime garancia az Instagram követőkre: a megrendelt követők megtartásáért hosszú távon is vállaljuk a támogatást.</p>
+                <p>Nincs garancia fióktörlésre vagy korlátozásra: a szolgáltatás nem vállal felelősséget azért, ha a közösségi oldal fiókodat törlik vagy korlátozzák.</p>
+                <p>A profilodnak a teljesítés idejére nyilvánosnak kell lennie. Nem kérünk jelszót, csak felhasználónevet.</p>
+                <p>Az általános feltételek szerint a szolgáltatás nem használható jogellenes vagy közösségi szabályokat sértő célokra.</p>
+              </div>
             </div>
           </div>
         </div>
